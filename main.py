@@ -3,9 +3,10 @@ from flask_login import LoginManager, login_user, login_required, logout_user, c
 
 from forms.news import NewsForm
 from forms.user import RegisterForm, LoginForm
-from data.news import News
+from data.news import Course
 from data.users import User
 from data import db_session
+
 
 app = Flask(__name__)
 login_manager = LoginManager()
@@ -36,12 +37,19 @@ def main():
 def add_news():
     form = NewsForm()
     if form.validate_on_submit():
+        to_add = form.add_users.data
+        try:
+            a = map(int, to_add.split())
+        except:
+            return render_template('news.html', title='Добавление новости', form=form,
+                                   message="Неправильно введены id для добавления")
         db_sess = db_session.create_session()
-        news = News()
-        news.title = form.title.data
-        news.content = form.content.data
-        news.is_private = form.is_private.data
-        current_user.news.append(news)
+        course = Course()
+        course.title = form.title.data
+        course.content = form.content.data
+        course.is_private = form.is_private.data
+        course.included_users = f"{current_user.id} " + to_add
+        current_user.course.append(course)
         db_sess.merge(current_user)
         db_sess.commit()
         return redirect('/')
@@ -52,7 +60,7 @@ def add_news():
 @login_required
 def news_delete(id):
     db_sess = db_session.create_session()
-    news = db_sess.query(News).filter(News.id == id, News.user == current_user).first()
+    news = db_sess.query(Course).filter(Course.id == id, Course.user == current_user).first()
     if news:
         db_sess.delete(news)
         db_sess.commit()
@@ -67,35 +75,42 @@ def edit_news(id):
     form = NewsForm()
     if request.method == "GET":
         db_sess = db_session.create_session()
-        news = db_sess.query(News).filter(News.id == id, News.user == current_user).first()
-        if news:
-            form.title.data = news.title
-            form.content.data = news.content
-            form.is_private.data = news.is_private
+        course = db_sess.query(Course).filter(Course.id == id, Course.user == current_user).first()
+        if Course:
+            form.title.data = course.title
+            form.content.data = course.content
+            # form.is_private.data = news.is_private
         else:
             abort(404)
     if form.validate_on_submit():
         db_sess = db_session.create_session()
-        news = db_sess.query(News).filter(News.id == id, News.user == current_user).first()
-        if news:
-            news.title = form.title.data
-            news.content = form.content.data
-            news.is_private = form.is_private.data
+        course = db_sess.query(Course).filter(Course.id == id, Course.user == current_user).first()
+        if course:
+            course.title = form.title.data
+            course.content = form.content.data
+            # news.is_private = form.is_private.data
             db_sess.commit()
             return redirect('/')
         else:
             abort(404)
-    return render_template('news.html', title='Редактирование новости', form=form)
+    return render_template('news.html', title='Редактирование курса', form=form)
 
 
 @app.route("/")
 def index():
     db_sess = db_session.create_session()
     if current_user.is_authenticated:
-        news = db_sess.query(News).filter((News.user == current_user) | (News.is_private != True))
+        all = db_sess.query(Course)
+        course = list()
+        for i in all:
+            print(i.included_users)
+            if current_user.id in list(map(int, i.included_users.split())):
+                course.append(i)
+        # news = db_sess.query(News).filter((News.user == current_user) | (News.is_private != True))
+
     else:
-        news = db_sess.query(News).filter(News.is_private != True)
-    return render_template("index.html", news=news)
+        course = []
+    return render_template("index.html", news=course)
 
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -105,6 +120,9 @@ def reqister():
         if form.password.data != form.password_again.data:
             return render_template('register.html', title='Регистрация', form=form,
                                    message="Пароли не совпадают")
+        if form.type.data.lower() not in ["student", "teacher", "owner"]:
+            return render_template('register.html', title='Регистрация', form=form,
+                                   message="неверно указан тип акаунта")
         db_sess = db_session.create_session()
         if db_sess.query(User).filter(User.email == form.email.data).first():
             return render_template('register.html', title='Регистрация', form=form,
@@ -112,7 +130,8 @@ def reqister():
         user = User(
             name=form.name.data,
             email=form.email.data,
-            about=form.about.data
+            about=form.about.data,
+            type=form.type.data.lower()
         )
         user.set_password(form.password.data)
         db_sess.add(user)
