@@ -1,11 +1,12 @@
 from flask import Flask, render_template, redirect, request, abort
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 
-from forms.news import NewsForm
+from forms.news import NewsForm, LessonForm
 from forms.user import RegisterForm, LoginForm
 from data.news import Course
 from data.users import User
 from data import db_session
+from data.lesson import Lesson
 
 
 app = Flask(__name__)
@@ -151,6 +152,45 @@ def login():
             return redirect("/")
         return render_template('login.html', message="Неправильный логин или пароль", form=form)
     return render_template('login.html', title='Авторизация', form=form)
+
+
+@app.route('/course_info/<int:id>', methods=['GET', 'POST'])
+@login_required
+def info(id):
+    db_sess = db_session.create_session()
+    name = db_sess.query(Course)
+    creator = None
+    for i in name:
+        if i.id == id:
+            name = i.title
+            creator = i.user_id
+            break
+    if current_user.is_authenticated:
+        all = db_sess.query(Lesson)
+        course = list()
+        for i in all:
+            if id == i.course:
+                course.append(i)
+        # news = db_sess.query(News).filter((News.user == current_user) | (News.is_private != True))
+
+    else:
+        course = []
+    return render_template("course_info.html", lessons=course, name=name, id=id, creator=creator)
+
+
+@app.route('/add_lesson/<int:id>', methods=['GET', 'POST'])
+@login_required
+def add_lesson(id):
+    form = LessonForm()
+    if form.validate_on_submit():
+        db_sess = db_session.create_session()
+        lesson = Lesson()
+        lesson.title = form.title.data
+        lesson.content = form.content.data
+        lesson.course = id
+        db_sess.commit()
+        return redirect(f'/course_info/{id}')
+    return render_template(f'add_lesson.html', title='Добавление урока', form=form)
 
 
 if __name__ == '__main__':

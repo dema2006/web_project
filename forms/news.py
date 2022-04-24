@@ -10,3 +10,11 @@ class NewsForm(FlaskForm):
                             validators=[DataRequired()])
     is_private = BooleanField("Личное")
     submit = SubmitField('Применить')
+
+
+class LessonForm(FlaskForm):
+    title = StringField('Название', validators=[DataRequired()])
+    content = TextAreaField("Содержание")
+    submit = SubmitField('Применить')
+
+

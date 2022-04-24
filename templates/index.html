@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <h1>Записи в блоге</h1>
+    <h1>Ваши курсы</h1>
     {% if current_user.is_authenticated %}
         <a href="news" class="btn btn-secondary">Добавить курс</a>
     {% endif %}
     {% for item in news %}
         <div class="col-md6 border rounded">
-            <h2>{{ item.title }}</h2>
+            <a href="course_info/{{ item.id }}"><h2>{{ item.title }}</h2></a>
             <div>
                 {{ item.content }}
             </div>
