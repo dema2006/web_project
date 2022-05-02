@@ -1,5 +1,6 @@
 from flask import Flask, render_template, redirect, request, abort
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
+import datetime
 
 from forms.news import NewsForm, LessonForm
 from forms.user import RegisterForm, LoginForm
@@ -7,6 +8,7 @@ from data.news import Course
 from data.users import User
 from data import db_session
 from data.lesson import Lesson
+from forms.add_user_to_course import InviteForm
 
 
 app = Flask(__name__)
@@ -38,23 +40,24 @@ def main():
 def add_news():
     form = NewsForm()
     if form.validate_on_submit():
-        to_add = form.add_users.data
-        try:
-            a = map(int, to_add.split())
-        except:
-            return render_template('news.html', title='Добавление новости', form=form,
-                                   message="Неправильно введены id для добавления")
+        # to_add = form.add_users.data
+        # try:
+        #     a = map(int, to_add.split())
+        # except:
+        #     return render_template('news.html', title='Добавление новости', form=form,
+        #                            message="Неправильно введены id для добавления")
         db_sess = db_session.create_session()
         course = Course()
         course.title = form.title.data
         course.content = form.content.data
         course.is_private = form.is_private.data
-        course.included_users = f"{current_user.id} " + to_add
+        course.included_users = f"{current_user.id} "
+        course.create_link(current_user.id, datetime.datetime.now())
         current_user.course.append(course)
         db_sess.merge(current_user)
         db_sess.commit()
         return redirect('/')
-    return render_template('news.html', title='Добавление новости', form=form)
+    return render_template('news.html', title='Добавление новости', form=form, inv=0)
 
 
 @app.route('/news_delete/<int:id>', methods=['GET', 'POST'])
@@ -84,17 +87,33 @@ def edit_news(id):
         else:
             abort(404)
     if form.validate_on_submit():
+        # to_add = form.add_users.data
+        # try:
+        #     a = map(int, to_add.split())
+        # except:
+        #     return render_template('news.html', title='Добавление новости', form=form,
+        #                            message="Неправильно введены id для добавления")
         db_sess = db_session.create_session()
         course = db_sess.query(Course).filter(Course.id == id, Course.user == current_user).first()
         if course:
             course.title = form.title.data
             course.content = form.content.data
+            course.included_users = course.included_users
             # news.is_private = form.is_private.data
             db_sess.commit()
             return redirect('/')
         else:
             abort(404)
-    return render_template('news.html', title='Редактирование курса', form=form)
+    db_sess = db_session.create_session()
+    course = db_sess.query(Course).filter(Course.id == id, Course.user == current_user).first()
+    if course:
+        inv = course.invite_code
+    else:
+        inv = 0
+    print(inv)
+    db_sess.commit()
+
+    return render_template('news.html', title='Редактирование курса', form=form, inv=inv)
 
 
 @app.route("/")
@@ -104,7 +123,6 @@ def index():
         all = db_sess.query(Course)
         course = list()
         for i in all:
-            print(i.included_users)
             if current_user.id in list(map(int, i.included_users.split())):
                 course.append(i)
         # news = db_sess.query(News).filter((News.user == current_user) | (News.is_private != True))
@@ -172,9 +190,9 @@ def info(id):
             if id == i.course:
                 course.append(i)
         # news = db_sess.query(News).filter((News.user == current_user) | (News.is_private != True))
-
     else:
         course = []
+    print(course)
     return render_template("course_info.html", lessons=course, name=name, id=id, creator=creator)
 
 
@@ -188,9 +206,26 @@ def add_lesson(id):
         lesson.title = form.title.data
         lesson.content = form.content.data
         lesson.course = id
+        db_sess.add(lesson)
         db_sess.commit()
         return redirect(f'/course_info/{id}')
     return render_template(f'add_lesson.html', title='Добавление урока', form=form)
+
+
+@app.route('/invite_code', methods=['GET', 'POST'])
+@login_required
+def invite_people():
+    form = InviteForm()
+    if form.validate_on_submit():
+        db_sess = db_session.create_session()
+        course = db_sess.query(Course).filter(Course.invite_code == form.title.data).first()
+        print(course)
+        if course:
+            course.included_users = course.included_users + f" {current_user.id}"
+            db_sess.commit()
+
+        return redirect("/")
+    return render_template("invite.html", title="Добавление к курсу", form=form)
 
 
 if __name__ == '__main__':

@@ -14,6 +14,7 @@
     <nav class="navbar navbar-light bg-light">
         <a class="navbar-brand" href="#">Ed_2_U</a>
         {% if current_user.is_authenticated %}
+            <a class="btn btn-primary " href="/invite_code">Добавиться к курсу</a>
             <a class="navbar-brand" href="/logout">{{ current_user.name }}</a>
         {% else %}
             <p>

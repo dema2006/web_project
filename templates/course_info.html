@@ -5,7 +5,7 @@
     {% if current_user.is_authenticated and current_user.id == creator%}
         <a href="/add_lesson/{{ id }}" class="btn btn-secondary">Добавить урок</a>
     {% endif %}
-    {% for item in news %}
+    {% for item in lessons %}
         <div class="col-md6 border rounded">
             <h2>{{ item.title }}</h2>
             <div>
@@ -16,7 +16,7 @@
 <!--                    <a href="/news/{{ item.id }}" class="btn btn-warning">Изменить</a>-->
 <!--                    <a href="/news_delete/{{ item.id }}" class="btn btn-danger">Удалить</a>-->
 <!--                </div>-->
-            {% endif %}
+<!--            {% endif %}-->
         </div>
     {% endfor %}
 {% endblock %}
